@@ -30,7 +30,7 @@ namespace WpfApp1
         }
 
         //Строка подключения
-        SqlConnection con = new SqlConnection("Data Source=mssql;Initial Catalog=gr682_bpv;Integrated Security=True");
+        SqlConnection con = new SqlConnection("Data Source=localhost;Initial Catalog=master;Integrated Security=True");
 
         //Выход из приложения
         private void Exit_Click(object sender, RoutedEventArgs e)
@@ -68,9 +68,13 @@ namespace WpfApp1
                         con.Close();
                         var index = engdata.SelectedIndex;
                         var index1 = rusdata.SelectedIndex;
+
+
                         //вот тут возникает ошибка
-                    /*  engdata.Items.Remove(index);
-                        rusdata.Items.Remove(index1);*/
+                        engdata.Items.Remove(index);
+                        rusdata.Items.Remove(index1);
+
+
                         MessageBox.Show("Вы правильно угадали слово, поздравляем!");
                     }
                     else
