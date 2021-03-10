@@ -1,41 +1,63 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Data.SqlClient;
 using System.Data;
 
 namespace WpfApp1
 {
-    /// <summary>
-    /// Логика взаимодействия для MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
+            NewWord();
             EnglishWord();
             RussianWord();
         }
 
         //Строка подключения
         SqlConnection con = new SqlConnection("Data Source=localhost;Initial Catalog=master;Integrated Security=True");
+       
+        //Для подсчета ошибок при неправильном выборе слов
+        int a = 0;
+
+        //Слова для колонок
+        void NewWord()
+        {
+            try
+            {
+                con.Open();
+                string delete = "TRUNCATE TABLE Words";
+                SqlDataAdapter dataAdapter = new SqlDataAdapter(delete, con);
+                dataAdapter.SelectCommand.ExecuteNonQuery();
+                con.Close();
+                con.Open();
+                string word = "INSERT INTO Words(EnglishWord,RussianWord) VALUES ('Pig','Свинья'),('Dog','Собака'),('Cat','Кошка'),('User','Пользователь'),('Computer','Компьютер'),('Book','Книга'),('Elephant','Слон'),('Shop','Магазин'),('Doctor','Доктор'),('Soup','Суп')";
+                SqlDataAdapter dataAdapter1 = new SqlDataAdapter(word, con);
+                dataAdapter1.SelectCommand.ExecuteNonQuery();
+                con.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка! " + ex.ToString());
+            }
+           
+        }
 
         //Выход из приложения
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
+            try
+            {
+                NewWord();
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                con.Close();
+                MessageBox.Show("Ошибка! " + ex.ToString());
+            }
         }
 
         //Обновление слов
@@ -62,31 +84,57 @@ namespace WpfApp1
                     adapter.SelectCommand = sql;
                     DataSet dataSet = new DataSet();
                     adapter.Fill(dataSet);
-
                     if (dataSet.Tables[0].Rows.Count > 0)
                     {
-                        con.Close();
-                        var index = engdata.SelectedIndex;
-                        var index1 = rusdata.SelectedIndex;
-
-
-                        //вот тут возникает ошибка
-                        engdata.Items.Remove(index);
-                        rusdata.Items.Remove(index1);
-
-
-                        MessageBox.Show("Вы правильно угадали слово, поздравляем!");
+                        /*   var index = engdata.SelectedIndex;
+                          var index1 = rusdata.SelectedIndex;
+                           //вот тут возникает ошибка
+                           engdata.Items.Remove(index);
+                           rusdata.Items.Remove(index1); */
+                        txtenglish.Text = "";
+                        txtperevod.Text = "";
+                        rusdata.Height -= 20;
+                        engdata.Height -= 20;
+                        string idtable = dataSet.Tables[0].Rows[0]["ID_word"].ToString();
+                        string drop = "DELETE FROM Words WHERE ID_Word = '" + idtable.ToString() + "'";
+                        SqlDataAdapter dataAdapter = new SqlDataAdapter(drop, con);
+                        dataAdapter.SelectCommand.ExecuteNonQuery();
+                        con.Close();                    
+                        EnglishWord();
+                        RussianWord();
+                        provekrazero();
                     }
                     else
                     {
                         con.Close();
-                        MessageBox.Show("Вы не угадали слово!");
+                        a++;
+                        if (podskazka.IsChecked==true)
+                        {
+                            con.Open();
+                            SqlCommand sql1 = new SqlCommand("SELECT RussianWord FROM Words Where EnglishWord = '" + txtenglish.Text + "'", con);
+                            SqlDataAdapter adapter1 = new SqlDataAdapter();
+                            adapter1.SelectCommand = sql1;
+                            DataSet dataSet1 = new DataSet();
+                            adapter1.Fill(dataSet1);
+                            if (dataSet1.Tables[0].Rows.Count > 0)
+                            {
+                                string russlovo = dataSet1.Tables[0].Rows[0]["RussianWord"].ToString();
+                                MessageBox.Show("Вы неправильно сопоставили слова! Правильно: " + txtenglish.Text + "-" + russlovo.ToString());
+                            }
+                            con.Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Вы неправильно сопоставили слова!");
+                        }
+                        txtenglish.Text = "";
+                        txtperevod.Text = "";
                     }
                 }
                 catch (Exception ex)
                 {
                     con.Close();
-                    MessageBox.Show("Ошибка " + ex.Message);
+                    MessageBox.Show("Ошибка! " + ex.Message);
                 }
             }
         }
@@ -102,13 +150,13 @@ namespace WpfApp1
                 DataTable dataTable = new DataTable();
                 dataAdapter.Fill(dataTable);
                 engdata.ItemsSource = dataTable.DefaultView;
-                dataAdapter.Update(dataTable);
+                dataAdapter.Update(dataTable);             
                 con.Close();
             }
-            catch
+            catch (Exception ex)
             {
                 con.Close();
-                MessageBox.Show("Ошибка");
+                MessageBox.Show("Ошибка! " + ex.ToString());
             }
         }
 
@@ -126,10 +174,57 @@ namespace WpfApp1
                 dataAdapter.Update(dataTable);
                 con.Close();
             }
-            catch
+            catch (Exception ex)
             {
                 con.Close();
-                MessageBox.Show("Ошибка");
+                MessageBox.Show("Ошибка! " + ex.ToString());
+            }
+        }
+
+        //Проверка, когда слов нет
+        void provekrazero()
+        {
+            try
+            {
+                con.Open();
+                SqlCommand sql = new SqlCommand("SELECT * FROM Words", con);
+                SqlDataAdapter adapter = new SqlDataAdapter();
+                adapter.SelectCommand = sql;
+                DataSet dataSet = new DataSet();
+                adapter.Fill(dataSet);
+
+                if (dataSet.Tables[0].Rows.Count <= 0)
+                {
+                    string word = "INSERT INTO Words(EnglishWord,RussianWord) VALUES ('Pig','Свинья'),('Dog','Собака'),('Cat','Кошка'),('User','Пользователь'),('Computer','Компьютер'),('Book','Книга'),('Elephant','Слон'),('Shop','Магазин'),('Doctor','Доктор'),('Soup','Суп')";
+                    SqlDataAdapter dataAdapter = new SqlDataAdapter(word, con);
+                    dataAdapter.SelectCommand.ExecuteNonQuery();
+                    con.Close();
+                    RussianWord();
+                    EnglishWord();
+                    engdata.Height = 226;
+                    rusdata.Height = 226;
+                    MessageBox.Show("Поздравляем! Вы угадали все слова! Ошибок: " +a);
+                    a = 0;
+                    MessageBoxResult result = MessageBox.Show("Вы хотите продолжить играть?", "Выбор", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    switch (result)
+                    {
+                        case MessageBoxResult.Yes:
+                            break;
+                        case MessageBoxResult.No:
+                            Application.Current.Shutdown();
+                            break;
+                    }
+                }
+                else
+                {
+                    con.Close();
+                    MessageBox.Show("Вы правильно сопоставили слова! Поздравляем!");
+                }
+            }
+            catch (Exception ex)
+            {
+                con.Close();
+                MessageBox.Show("Ошибка! " + ex.ToString());
             }
         }
 
@@ -152,6 +247,52 @@ namespace WpfApp1
             if (rowView != null)
             {
                 txtperevod.Text = rowView["RussianWord"].ToString();
+            }
+        }
+
+        //Можем перемещать окно
+        private void Grid_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            DragMove();
+        }
+
+        //Тестирование
+        public bool Sravnenie(string eng, string rus)
+        {
+            try
+            {
+                if (eng == "" || rus =="")
+                {
+                    MessageBox.Show("Пустое значение");
+                    return false;
+                }
+                else
+                {
+                    con.Open();
+                    SqlCommand sql = new SqlCommand("SELECT * FROM Words Where EnglishWord = '" + eng.ToString() + "' and RussianWord = '" + rus.ToString() + "'", con);
+                    SqlDataAdapter adapter = new SqlDataAdapter();
+                    adapter.SelectCommand = sql;
+                    DataSet dataSet = new DataSet();
+                    adapter.Fill(dataSet);
+                    if (dataSet.Tables[0].Rows.Count > 0)
+                    {
+                        con.Close();
+                        MessageBox.Show("Слова верны!");
+                        return true;
+                    }
+                    else
+                    {
+                        con.Close();
+                        MessageBox.Show("Слова неверны!");
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                con.Close();
+                MessageBox.Show("Ошибка! " + ex.ToString());
+                return false;
             }
         }
     }
